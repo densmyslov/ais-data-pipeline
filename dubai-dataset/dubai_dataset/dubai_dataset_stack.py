@@ -4,8 +4,10 @@ import os
 from aws_cdk import (
     Stack,
     RemovalPolicy,
+    Duration,
     aws_s3 as s3,
     aws_s3_deployment as s3deploy,
+    aws_lambda as _lambda,
 )
 from constructs import Construct
 
@@ -71,3 +73,35 @@ class DubaiDatasetStack(Stack):
             destination_key_prefix="config/",
             include=["parameters.json"]
         )
+
+        # ===============Create Lambda Layer for aiohttp dependencies================
+        aiohttp_layer = _lambda.LayerVersion(self, "AiohttpLayer",
+            code=_lambda.Code.from_asset("layers/aiohttp-layer",
+                bundling={
+                    "image": _lambda.Runtime.PYTHON_3_13.bundling_image,
+                    "command": [
+                        "bash", "-c",
+                        "pip install -r requirements.txt -t /opt/python && cp -r /opt/python /opt/"
+                    ]
+                }
+            ),
+            compatible_runtimes=[_lambda.Runtime.PYTHON_3_13],
+            description="Layer containing aiohttp and aiofiles dependencies",
+        )
+
+        # ===============Create Lambda Function for Data Ingestion================
+        data_ingestion_lambda = _lambda.Function(self, "DataIngestionLambda",
+            runtime=_lambda.Runtime.PYTHON_3_13,
+            handler="lambda_handler.lambda_handler",
+            code=_lambda.Code.from_asset("lambdas/data-ingestion"),
+            layers=[aiohttp_layer],
+            timeout=Duration.minutes(15),
+            memory_size=1024,
+            environment={
+                "BUCKET_NAME": bucket.bucket_name,
+                "PATH_PREFIX": params.get('path_prefix', 'raw')
+            }
+        )
+
+        # Grant Lambda permissions to read/write S3 bucket
+        bucket.grant_read_write(data_ingestion_lambda)
