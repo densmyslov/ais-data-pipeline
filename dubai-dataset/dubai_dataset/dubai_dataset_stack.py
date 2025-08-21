@@ -1,5 +1,6 @@
 import json
 import boto3
+import os
 from aws_cdk import (
     Stack,
     RemovalPolicy,
@@ -24,7 +25,9 @@ class DubaiDatasetStack(Stack):
         # Use the bucket name from parameters.json + suffix: {account_id}-{region}
         base_bucket_name = params.get('bucket_name', 'dubai-real-estate-data')
         account_id = secrets.get('bucket_suffix', '')  # AWS Account ID from secrets
-        region = self.region  # Get current deployment region from CDK context
+        
+        # Get region from AWS_DEFAULT_REGION environment variable (set by GitHub Actions)
+        region = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
         bucket_suffix = f"{account_id}-{region}" if account_id and region else account_id or region or ''
         bucket_name = f"{base_bucket_name}-{bucket_suffix}" if bucket_suffix else base_bucket_name
         
