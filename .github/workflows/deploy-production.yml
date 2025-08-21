@@ -45,6 +45,11 @@ jobs:
           npm install -g aws-cdk@latest
           pip install -r requirements.txt
 
+      - name: Create secrets.json from GitHub secrets
+        working-directory: dubai-dataset
+        run: |
+          echo '{"bucket_suffix": "${{ secrets.AWS_ACCOUNT_ID }}"}' > config/secrets.json
+
       - name: Validate configuration files
         working-directory: dubai-dataset
         run: |
