@@ -81,7 +81,7 @@ class DubaiDatasetStack(Stack):
                     "image": _lambda.Runtime.PYTHON_3_13.bundling_image,
                     "command": [
                         "bash", "-c",
-                        "pip install -r requirements.txt -t /opt/python && cp -r /opt/python /opt/"
+                        "pip install -r requirements.txt -t /asset-output/python/"
                     ]
                 }
             ),
