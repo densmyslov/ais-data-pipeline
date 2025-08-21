@@ -10,3 +10,4 @@ __pycache__
 cdk.out
 CLAUDE.md
 *api_keys.json
+*secrets.json
