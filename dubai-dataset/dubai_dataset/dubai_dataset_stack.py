@@ -96,10 +96,14 @@ class DubaiDatasetStack(Stack):
             code=_lambda.Code.from_asset("lambdas/data-ingestion"),
             layers=[aiohttp_layer],
             timeout=Duration.minutes(15),
-            memory_size=1024,
+            memory_size=512,  # Reduced memory due to efficient streaming
             environment={
                 "BUCKET_NAME": bucket.bucket_name,
-                "PATH_PREFIX": params.get('path_prefix', 'raw')
+                "PATH_PREFIX": params.get('path_prefix', 'raw'),
+                "CONCURRENCY": "3",
+                "S3_PART_MB": "50",
+                "HTTP_CHUNK_KB": "1024", 
+                "LOG_LEVEL": "INFO"
             }
         )
 
