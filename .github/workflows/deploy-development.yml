@@ -1,0 +1,105 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches-ignore: [main, stage]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate branch is feature branch
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "stage" ]]; then
+            echo "❌ This workflow does not run on main or stage branches"
+            exit 1
+          fi
+          echo "✅ Confirmed deployment of feature branch '$BRANCH' to development (eu-north-1)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install CDK and dependencies
+        run: |
+          npm install -g aws-cdk@latest
+          pip install -r requirements.txt
+
+      - name: Build Lambda Layers for Linux
+        run: |
+          echo "🔨 Building PyMuPDF layer for Linux..."
+          cd layers/pymupdf-layer
+          chmod +x build.sh
+          ./build.sh
+          cd ../..
+          
+          echo "🔨 Building Pillow layer for Linux..."
+          cd layers/pillow-layer
+          chmod +x build.sh
+          ./build.sh
+          cd ../..
+          
+          echo "✅ Lambda layers built successfully for Linux"
+
+      - name: Create api_keys.json from secret
+        run: |
+          echo '${{ secrets.API_KEYS_JSON }}' > config/api_keys.json
+
+      - name: Validate configuration files
+        run: |
+          python3 -c "
+          import json
+          import sys
+          
+          config_files = [
+              'config/parsing_parameters.json',
+              'config/parameters.json',
+              'config/api_keys.json'
+          ]
+          
+          for config_file in config_files:
+              try:
+                  with open(config_file, 'r') as f:
+                      json.load(f)
+                  print(f'✅ {config_file} is valid JSON')
+              except FileNotFoundError:
+                  print(f'⚠️ Warning: {config_file} not found')
+              except json.JSONDecodeError as e:
+                  print(f'❌ Error: {config_file} is invalid JSON: {e}')
+                  sys.exit(1)
+          
+          print('All configuration files validated successfully')
+          "
+
+      - name: CDK Bootstrap (if needed)
+        run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/eu-north-1
+
+      - name: CDK Deploy
+        run: cdk deploy --require-approval never
+
+      - name: Post-deployment notification
+        if: success()
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "🚀 Successfully deployed to DEVELOPMENT environment"
+          echo "Region: eu-north-1"
+          echo "Branch: $BRANCH"
