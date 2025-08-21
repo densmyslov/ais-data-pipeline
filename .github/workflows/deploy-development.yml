@@ -45,27 +45,6 @@ jobs:
           npm install -g aws-cdk@latest
           pip install -r requirements.txt
 
-      - name: Build Lambda Layers for Linux
-        run: |
-          echo "🔨 Building PyMuPDF layer for Linux..."
-          cd layers/pymupdf-layer
-          chmod +x build.sh
-          ./build.sh
-          cd ../..
-          
-          echo "🔨 Building Pillow layer for Linux..."
-          cd layers/pillow-layer
-          chmod +x build.sh
-          ./build.sh
-          cd ../..
-          
-          echo "✅ Lambda layers built successfully for Linux"
-
-      - name: Create api_keys.json from secret
-        working-directory: dubai-dataset
-        run: |
-          echo '${{ secrets.API_KEYS_JSON }}' > config/api_keys.json
-
       - name: Validate configuration files
         working-directory: dubai-dataset
         run: |
@@ -74,9 +53,8 @@ jobs:
           import sys
           
           config_files = [
-              'config/parsing_parameters.json',
               'config/parameters.json',
-              'config/api_keys.json'
+              'config/secrets.json'
           ]
           
           for config_file in config_files:
