@@ -40,6 +40,7 @@ jobs:
           node-version: '24'
 
       - name: Install CDK and dependencies
+        working-directory: dubai-dataset
         run: |
           npm install -g aws-cdk@latest
           pip install -r requirements.txt
@@ -61,10 +62,12 @@ jobs:
           echo "✅ Lambda layers built successfully for Linux"
 
       - name: Create api_keys.json from secret
+        working-directory: dubai-dataset
         run: |
           echo '${{ secrets.API_KEYS_JSON }}' > config/api_keys.json
 
       - name: Validate configuration files
+        working-directory: dubai-dataset
         run: |
           python3 -c "
           import json
@@ -91,9 +94,11 @@ jobs:
           "
 
       - name: CDK Bootstrap (if needed)
+        working-directory: dubai-dataset
         run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/eu-north-1
 
       - name: CDK Deploy
+        working-directory: dubai-dataset
         run: cdk deploy --require-approval never
 
       - name: Post-deployment notification
