@@ -42,7 +42,6 @@ This project uses automated CDK deployment through GitHub Actions workflows. Dep
 | Branch | Environment | AWS Region | Workflow |
 |--------|-------------|------------|----------|
 | `main` | Production | us-east-2 | `deploy-production.yml` |
-| `stage` | Staging | eu-central-2 | `deploy-staging.yml` |
 | Feature branches | Development | eu-north-1 | `deploy-development.yml` |
 
 ### Required GitHub Secrets
@@ -51,19 +50,17 @@ Before deployments can work, add these secrets to your GitHub repository (Settin
 
 - `AWS_ACCESS_KEY_ID` - Your AWS access key ID
 - `AWS_SECRET_ACCESS_KEY` - Your AWS secret access key  
-- `AWS_ACCOUNT_ID` - Your 12-digit AWS account ID
-- `API_KEYS_JSON` - JSON string containing API keys for external services
+- `AWS_ACCOUNT_ID` - Your 12-digit AWS account ID (also used as bucket suffix)
 
 ### How Deployment Works
 
 1. **Code Push**: Push commits to any branch
 2. **Workflow Trigger**: GitHub Actions automatically selects the appropriate workflow based on branch
 3. **Environment Setup**: Installs Python 3.13, Node.js 24, and AWS CDK
-4. **Lambda Layers**: Builds Lambda layers for Linux (PyMuPDF, Pillow)
-5. **Configuration**: Creates `api_keys.json` from GitHub secrets
-6. **Validation**: Validates all JSON configuration files
-7. **CDK Bootstrap**: Ensures CDK is bootstrapped in the target region
-8. **CDK Deploy**: Deploys the stack to the appropriate AWS environment
+4. **Configuration**: Creates `secrets.json` with bucket suffix from AWS_ACCOUNT_ID
+5. **Validation**: Validates all JSON configuration files
+6. **CDK Bootstrap**: Ensures CDK is bootstrapped in the target region
+7. **CDK Deploy**: Deploys the stack to the appropriate AWS environment
 
 ### Manual Deployment
 
@@ -88,4 +85,43 @@ python -c "import json; json.load(open('config/parameters.json'))"
 cdk bootstrap  # One-time setup
 cdk deploy
 ```
+
+## S3 Bucket Management
+
+The CDK stack implements intelligent S3 bucket creation with the following logic:
+
+### Bucket Naming Convention
+- **Base name**: Taken from `config/parameters.json` (`bucket_name` field)
+- **Account ID**: AWS Account ID from `config/secrets.json` (`bucket_suffix` field)
+- **Region**: Deployment region from `AWS_DEFAULT_REGION` environment variable
+- **Final name**: `{bucket_name}-{account_id}-{region}` (e.g., `dubai-real-estate-data-123456789012-eu-north-1`)
+
+### Import/Create Logic
+The stack uses boto3 to check if the bucket already exists:
+
+```python
+# Check if bucket exists
+s3_client = boto3.client('s3')
+try:
+    s3_client.head_bucket(Bucket=bucket_name)
+    bucket_exists = True
+except ClientError as e:
+    if e.response['Error']['Code'] == '404':
+        bucket_exists = False
+```
+
+**If bucket exists**: Imports the existing bucket using `s3.Bucket.from_bucket_name()`
+**If bucket doesn't exist**: Creates a new bucket with:
+- Versioning enabled
+- Configurable removal policy (DESTROY for dev, RETAIN for prod)
+- Auto-delete objects setting from parameters
+
+### Configuration Deployment
+After bucket creation, the stack automatically deploys `config/parameters.json` to the S3 bucket under the `config/` prefix, making configuration accessible to other AWS services.
+
+### Regional Bucket Examples
+- **Development** (eu-north-1): `dubai-real-estate-data-123456789012-eu-north-1`
+- **Production** (us-east-2): `dubai-real-estate-data-123456789012-us-east-2`
+
+This ensures global uniqueness across all AWS accounts and regions while maintaining environment separation.
 
