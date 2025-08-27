@@ -6,5 +6,5 @@
     "https://www.dubaipulse.gov.ae/dataset/ac68c7d5-8acb-441c-9a7d-6e6d72942d86/resource/57ca3b1a-775d-4f6c-8b04-19e02f6b4a03/download/developers.csv",
     "https://www.dubaipulse.gov.ae/dataset/04168da5-9d10-4fe3-bd29-6dba97751435/resource/6450b4a5-f9c5-4aca-8e64-b38aa8db4c5a/download/buildings.csv"],
     "bucket_name": "dubai-real-estate-data",
-    "path_prefix": "raw"
+    "s3_path_prefix": "raw"
 }
