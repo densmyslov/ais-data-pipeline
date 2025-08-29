@@ -1,4 +1,4 @@
-name: Deploy to Development
+name: Validate Feature Branch
 
 on:
   push:
@@ -6,9 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
-    environment: development
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,14 +19,7 @@ jobs:
             echo "❌ This workflow does not run on main or stage branches"
             exit 1
           fi
-          echo "✅ Confirmed deployment of feature branch '$BRANCH' to development (eu-north-1)"
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          echo "✅ Validated feature branch '$BRANCH'"
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -44,10 +36,10 @@ jobs:
           npm install -g aws-cdk@latest
           pip install -r dubai-dataset/requirements.txt
 
-      - name: Create secrets.json from GitHub secrets
+      - name: Create secrets.json for validation
         run: |
           mkdir -p dubai-dataset/config
-          echo '{"bucket_suffix": "${{ secrets.AWS_ACCOUNT_ID }}"}' > dubai-dataset/config/secrets.json
+          echo '{"bucket_suffix": "test"}' > dubai-dataset/config/secrets.json
 
       - name: Validate configuration files
         run: |
@@ -74,16 +66,15 @@ jobs:
           print('All configuration files validated successfully')
           "
 
-      - name: CDK Bootstrap (if needed)
-        run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/eu-north-1
+      - name: CDK Synth Validation
+        run: |
+          cdk synth --app "python3 agents-app.py" > /dev/null
+          cdk synth --app "python3 dubai-app.py" > /dev/null
+          echo "✅ CDK synthesis successful for both stacks"
 
-      - name: CDK Deploy
-        run: cdk deploy --require-approval never
-
-      - name: Post-deployment notification
+      - name: Validation notification
         if: success()
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
-          echo "🚀 Successfully deployed to DEVELOPMENT environment"
-          echo "Region: eu-north-1"
-          echo "Branch: $BRANCH"
+          echo "✅ Successfully validated feature branch '$BRANCH'"
+          echo "🚀 Ready for deployment using manual workflows"

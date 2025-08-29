@@ -1,25 +1,29 @@
-name: Validate Main Branch
+name: Deploy Dubai Dataset to Development
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_dubai_dataset:
+        description: 'Deploy Dubai Dataset Stack'
+        required: true
+        default: 'true'
+        type: boolean
 
 jobs:
-  validate:
+  deploy:
     runs-on: ubuntu-latest
+    environment: development
+    if: ${{ inputs.deploy_dubai_dataset == true }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate branch is main
-        run: |
-          BRANCH="${GITHUB_REF#refs/heads/}"
-          if [[ "$BRANCH" != "main" ]]; then
-            echo "❌ This workflow only runs on main branch"
-            exit 1
-          fi
-          echo "✅ Validated main branch"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -36,10 +40,10 @@ jobs:
           npm install -g aws-cdk@latest
           pip install -r dubai-dataset/requirements.txt
 
-      - name: Create secrets.json for validation
+      - name: Create secrets.json from GitHub secrets
         run: |
           mkdir -p dubai-dataset/config
-          echo '{"bucket_suffix": "test"}' > dubai-dataset/config/secrets.json
+          echo '{"bucket_suffix": "${{ secrets.AWS_ACCOUNT_ID }}"}' > dubai-dataset/config/secrets.json
 
       - name: Validate configuration files
         run: |
@@ -66,14 +70,14 @@ jobs:
           print('All configuration files validated successfully')
           "
 
-      - name: CDK Synth Validation
-        run: |
-          cdk synth --app "python3 agents-app.py" > /dev/null
-          cdk synth --app "python3 dubai-app.py" > /dev/null
-          echo "✅ CDK synthesis successful for both stacks"
+      - name: CDK Bootstrap (if needed)
+        run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/eu-north-1
 
-      - name: Validation notification
+      - name: CDK Deploy DubaiDatasetStack
+        run: cdk deploy DubaiDatasetStack --app "python3 dubai-app.py" --require-approval never
+
+      - name: Post-deployment notification
         if: success()
         run: |
-          echo "✅ Successfully validated main branch"
-          echo "🚀 Ready for production deployment using manual workflows"
+          echo "🚀 Successfully deployed Dubai Dataset Stack to DEVELOPMENT environment"
+          echo "Region: eu-north-1"
