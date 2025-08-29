@@ -12,9 +12,8 @@ class AgentsStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Load configuration files
-        with open('config/parameters.json', 'r') as f:
-            params = json.load(f)
+        # Configuration can be loaded here if needed in the future
+        # Currently using default settings for agents
 
         # ===============Create Lambda Layer for Polars dependencies================
         polars_layer = _lambda.LayerVersion(self, "PolarsLayer",
