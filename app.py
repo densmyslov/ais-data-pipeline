@@ -3,8 +3,8 @@ import os
 
 import aws_cdk as cdk
 
-from dubai_dataset.dubai_dataset_stack import DubaiDatasetStack
-from dubai_dataset.agents_stack import AgentsStack
+from dubai_dataset.dubai_dataset.dubai_dataset_stack import DubaiDatasetStack
+from agents.agents_stack import AgentsStack
 
 
 app = cdk.App()
