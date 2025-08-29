@@ -40,26 +40,24 @@ jobs:
           node-version: '24'
 
       - name: Install CDK and dependencies
-        working-directory: dubai-dataset
         run: |
           npm install -g aws-cdk@latest
-          pip install -r requirements.txt
+          pip install -r dubai-dataset/requirements.txt
 
       - name: Create secrets.json from GitHub secrets
-        working-directory: dubai-dataset
         run: |
-          echo '{"bucket_suffix": "${{ secrets.AWS_ACCOUNT_ID }}"}' > config/secrets.json
+          mkdir -p dubai-dataset/config
+          echo '{"bucket_suffix": "${{ secrets.AWS_ACCOUNT_ID }}"}' > dubai-dataset/config/secrets.json
 
       - name: Validate configuration files
-        working-directory: dubai-dataset
         run: |
           python3 -c "
           import json
           import sys
           
           config_files = [
-              'config/parameters.json',
-              'config/secrets.json'
+              'dubai-dataset/config/parameters.json',
+              'dubai-dataset/config/secrets.json'
           ]
           
           for config_file in config_files:
@@ -77,11 +75,9 @@ jobs:
           "
 
       - name: CDK Bootstrap (if needed)
-        working-directory: dubai-dataset
         run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/eu-north-1
 
       - name: CDK Deploy
-        working-directory: dubai-dataset
         run: cdk deploy --require-approval never
 
       - name: Post-deployment notification
